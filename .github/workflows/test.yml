@@ -33,10 +33,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install nightly Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-11-10
+          toolchain: nightly-2024-11-11
       - uses: Swatinem/rust-cache@v1
       - name: Run tests
         run: cargo test --features unstable-thread-local

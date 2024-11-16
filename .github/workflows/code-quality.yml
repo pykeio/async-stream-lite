@@ -23,10 +23,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Install Rust
+      - name: Install nightly Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-11-10
+          toolchain: nightly-2024-11-11
           components: rustfmt, clippy
       - name: Check fmt
         run: cargo fmt --all -- --check
