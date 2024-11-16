@@ -8,15 +8,15 @@ use futures_util::{pin_mut, stream::StreamExt};
 
 #[tokio::main]
 async fn main() {
-    let stream = async_stream(|r#yield| async move {
+	let stream = async_stream(|r#yield| async move {
 		for i in 0..3 {
 			r#yield(i).await;
 		}
 	});
-    pin_mut!(stream);
-    while let Some(value) = stream.next().await {
-        println!("got {}", value);
-    }
+	pin_mut!(stream);
+	while let Some(value) = stream.next().await {
+		println!("got {}", value);
+	}
 }
 ```
 
