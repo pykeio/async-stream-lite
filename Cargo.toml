@@ -9,7 +9,7 @@ description = "Proc macro-free async/await Rust streams"
 repository = "https://github.com/pykeio/async-stream-lite"
 
 [dependencies]
-futures-core = "0.3"
+futures-core = { version = "0.3", default-features = false }
 pin-project-lite = "0.2"
 
 [dev-dependencies]
