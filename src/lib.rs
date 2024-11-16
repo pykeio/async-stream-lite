@@ -1,3 +1,4 @@
+#![allow(clippy::tabs_in_doc_comments)]
 #![cfg_attr(feature = "unstable-thread-local", feature(thread_local))]
 #![cfg_attr(all(not(test), feature = "unstable-thread-local"), no_std)]
 
