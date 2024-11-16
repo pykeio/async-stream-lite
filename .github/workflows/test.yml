@@ -1,0 +1,42 @@
+name: 🧪 Cargo Tests
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/test.yml'
+      - 'src/**/*.rs'
+      - 'Cargo.toml'
+  pull_request:
+    paths:
+      - '.github/workflows/test.yml'
+      - 'src/**/*.rs'
+      - 'Cargo.toml'
+env:
+  RUST_BACKTRACE: 1
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v1
+      - name: Run tests
+        run: cargo test
+  test-no-std:
+    name: Run tests (unstable-thread-local)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly-2024-11-10
+      - uses: Swatinem/rust-cache@v1
+      - name: Run tests
+        run: cargo test --features unstable-thread-local

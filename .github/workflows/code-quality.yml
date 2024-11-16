@@ -1,0 +1,34 @@
+name: 📋 Code Quality
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/code-quality.yml'
+      - 'src/**/*.rs'
+      - 'Cargo.toml'
+  pull_request:
+    paths:
+      - '.github/workflows/code-quality.yml'
+      - 'src/**/*.rs'
+      - 'Cargo.toml'
+env:
+  RUST_BACKTRACE: 1
+jobs:
+  lint-and-fmt:
+    name: Lint & format
+    runs-on: ubuntu-24.04
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly-2024-11-10
+          components: rustfmt, clippy
+      - name: Check fmt
+        run: cargo fmt --all -- --check
+      - name: Run clippy
+        run: cargo clippy

@@ -1,0 +1,20 @@
+[package]
+name = "async-stream-lite"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.65"
+license = "MIT"
+authors = [ "Carson M <carson@pyke.io>" ]
+description = "Proc macro-free async/await Rust streams"
+repository = "https://github.com/pykeio/async-stream-lite"
+
+[dependencies]
+futures-core = "0.3"
+pin-project-lite = "0.2"
+
+[dev-dependencies]
+tokio = { version = "1", features = [ "full", "macros" ] }
+futures = "0.3"
+
+[features]
+unstable-thread-local = []
