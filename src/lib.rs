@@ -27,21 +27,28 @@ thread_local! {
 #[thread_local]
 static STORE: Cell<*mut ()> = Cell::new(ptr::null_mut());
 
-pub(crate) fn r#yield<T>(value: T) -> YieldFut<T> {
-	YieldFut { value: Some(value) }
+pub struct Yielder<T> {
+	_p: PhantomData<T>
+}
+
+impl<T> Yielder<T> {
+	pub fn r#yield(&self, value: T) -> YieldFut<'_, T> {
+		YieldFut { value: Some(value), _p: PhantomData }
+	}
 }
 
 /// Future returned by an [`AsyncStream`]'s yield function.
 ///
 /// This future must be `.await`ed inside the generator in order for the item to be yielded by the stream.
 #[must_use = "stream will not yield this item unless the future returned by yield is awaited"]
-pub struct YieldFut<T> {
-	value: Option<T>
+pub struct YieldFut<'y, T> {
+	value: Option<T>,
+	_p: PhantomData<&'y ()>
 }
 
-impl<T> Unpin for YieldFut<T> {}
+impl<T> Unpin for YieldFut<'_, T> {}
 
-impl<T> Future for YieldFut<T> {
+impl<T> Future for YieldFut<'_, T> {
 	type Output = ();
 
 	fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -153,16 +160,16 @@ where
 
 /// Create an asynchronous [`Stream`] from an asynchronous generator function.
 ///
-/// The provided function will be given a "yielder" function, which, when called, causes the stream to yield an item:
+/// The provided function will be given a [`Yielder`], which, when called, causes the stream to yield an item:
 /// ```
 /// use async_stream_lite::async_stream;
 /// use futures::{pin_mut, stream::StreamExt};
 ///
 /// #[tokio::main]
 /// async fn main() {
-/// 	let stream = async_stream(|r#yield| async move {
+/// 	let stream = async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			r#yield(i).await;
+/// 			yielder.r#yield(i).await;
 /// 		}
 /// 	});
 /// 	pin_mut!(stream);
@@ -181,9 +188,9 @@ where
 /// };
 ///
 /// fn zero_to_three() -> impl Stream<Item = u32> {
-/// 	async_stream(|r#yield| async move {
+/// 	async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			r#yield(i).await;
+/// 			yielder.r#yield(i).await;
 /// 		}
 /// 	})
 /// }
@@ -207,9 +214,9 @@ where
 /// };
 ///
 /// fn zero_to_three() -> BoxStream<'static, u32> {
-/// 	Box::pin(async_stream(|r#yield| async move {
+/// 	Box::pin(async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			r#yield(i).await;
+/// 			yielder.r#yield(i).await;
 /// 		}
 /// 	}))
 /// }
@@ -232,18 +239,18 @@ where
 /// };
 ///
 /// fn zero_to_three() -> impl Stream<Item = u32> {
-/// 	async_stream(|r#yield| async move {
+/// 	async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			r#yield(i).await;
+/// 			yielder.r#yield(i).await;
 /// 		}
 /// 	})
 /// }
 ///
 /// fn double<S: Stream<Item = u32>>(input: S) -> impl Stream<Item = u32> {
-/// 	async_stream(|r#yield| async move {
+/// 	async_stream(|yielder| async move {
 /// 		pin_mut!(input);
 /// 		while let Some(value) = input.next().await {
-/// 			r#yield(value * 2).await;
+/// 			yielder.r#yield(value * 2).await;
 /// 		}
 /// 	})
 /// }
@@ -261,10 +268,10 @@ where
 /// See also [`try_async_stream`], a variant of [`async_stream`] which supports try notation (`?`).
 pub fn async_stream<T, F, U>(generator: F) -> AsyncStream<T, U>
 where
-	F: FnOnce(fn(value: T) -> YieldFut<T>) -> U,
+	F: FnOnce(Yielder<T>) -> U,
 	U: Future<Output = ()>
 {
-	let generator = generator(r#yield::<T>);
+	let generator = generator(Yielder { _p: PhantomData });
 	AsyncStream {
 		_p: PhantomData,
 		done: false,

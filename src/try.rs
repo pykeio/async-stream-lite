@@ -7,7 +7,7 @@ use core::{
 
 use futures_core::stream::{FusedStream, Stream};
 
-use crate::{YieldFut, enter, r#yield};
+use crate::{Yielder, enter};
 
 pin_project_lite::pin_project! {
 	/// A [`Stream`] created from a fallible, asynchronous generator-like function.
@@ -78,12 +78,12 @@ where
 /// use tokio::net::{TcpListener, TcpStream};
 ///
 /// fn bind_and_accept(addr: SocketAddr) -> impl Stream<Item = io::Result<TcpStream>> {
-/// 	try_async_stream(|r#yield| async move {
+/// 	try_async_stream(|yielder| async move {
 /// 		let mut listener = TcpListener::bind(addr).await?;
 /// 		loop {
 /// 			let (stream, addr) = listener.accept().await?;
 /// 			println!("received on {addr:?}");
-/// 			r#yield(stream).await;
+/// 			yielder.r#yield(stream).await;
 /// 		}
 /// 	})
 /// }
@@ -93,10 +93,10 @@ where
 /// error is encountered, the stream yields `Err(E)` and is subsequently terminated.
 pub fn try_async_stream<T, E, F, U>(generator: F) -> TryAsyncStream<T, E, U>
 where
-	F: FnOnce(fn(T) -> YieldFut<T>) -> U,
+	F: FnOnce(Yielder<T>) -> U,
 	U: Future<Output = Result<(), E>>
 {
-	let generator = generator(r#yield::<T>);
+	let generator = generator(Yielder { _p: PhantomData });
 	TryAsyncStream {
 		_p: PhantomData,
 		done: false,
@@ -112,11 +112,11 @@ mod tests {
 
 	#[tokio::test]
 	async fn single_err() {
-		let s = try_async_stream(|r#yield| async move {
+		let s = try_async_stream(|yielder| async move {
 			if true {
 				Err("hello")?;
 			} else {
-				r#yield("world").await;
+				yielder.r#yield("world").await;
 			}
 			Ok(())
 		});
@@ -128,8 +128,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn yield_then_err() {
-		let s = try_async_stream(|r#yield| async move {
-			r#yield("hello").await;
+		let s = try_async_stream(|yielder| async move {
+			yielder.r#yield("hello").await;
 			Err("world")?;
 			unreachable!();
 		});
@@ -152,13 +152,13 @@ mod tests {
 		}
 
 		fn test() -> impl Stream<Item = Result<&'static str, ErrorB>> {
-			try_async_stream(|r#yield| async move {
+			try_async_stream(|yielder| async move {
 				if true {
 					Err(ErrorA(1))?;
 				} else {
 					Err(ErrorB(2))?;
 				}
-				r#yield("unreachable").await;
+				yielder.r#yield("unreachable").await;
 				Ok(())
 			})
 		}
