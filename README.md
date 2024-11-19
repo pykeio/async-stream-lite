@@ -8,9 +8,9 @@ use futures_util::{pin_mut, stream::StreamExt};
 
 #[tokio::main]
 async fn main() {
-	let stream = async_stream(|r#yield| async move {
+	let stream = async_stream(|yielder| async move {
 		for i in 0..3 {
-			r#yield(i).await;
+			yielder.r#yield(i).await;
 		}
 	});
 	pin_mut!(stream);

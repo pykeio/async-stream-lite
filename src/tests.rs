@@ -6,11 +6,11 @@ use futures::{
 };
 use tokio::sync::mpsc;
 
-use super::{YieldFut, async_stream};
+use super::{Yielder, async_stream};
 
 #[tokio::test]
 async fn noop_stream() {
-	let s = async_stream(|_yield: fn(()) -> YieldFut<()>| async move {});
+	let s = async_stream(|_yielder: Yielder<()>| async move {});
 	pin_mut!(s);
 
 	#[allow(clippy::never_loop)]
@@ -25,7 +25,7 @@ async fn empty_stream() {
 
 	{
 		let r = &mut ran;
-		let s = async_stream(|_yield: fn(()) -> YieldFut<()>| async move {
+		let s = async_stream(|_yield: Yielder<()>| async move {
 			*r = true;
 			println!("hello world!");
 		});
@@ -42,8 +42,8 @@ async fn empty_stream() {
 
 #[tokio::test]
 async fn yield_single_value() {
-	let s = async_stream(|r#yield| async move {
-		r#yield("hello").await;
+	let s = async_stream(|yielder| async move {
+		yielder.r#yield("hello").await;
 	});
 
 	let values: Vec<_> = s.collect().await;
@@ -54,8 +54,8 @@ async fn yield_single_value() {
 
 #[tokio::test]
 async fn fused() {
-	let s = async_stream(|r#yield| async move {
-		r#yield("hello").await;
+	let s = async_stream(|yielder| async move {
+		yielder.r#yield("hello").await;
 	});
 	pin_mut!(s);
 
@@ -69,10 +69,10 @@ async fn fused() {
 
 #[tokio::test]
 async fn yield_multi_value() {
-	let stream = async_stream(|r#yield| async move {
-		r#yield("hello").await;
-		r#yield("world").await;
-		r#yield("foobar").await;
+	let stream = async_stream(|yielder| async move {
+		yielder.r#yield("hello").await;
+		yielder.r#yield("world").await;
+		yielder.r#yield("foobar").await;
 	});
 
 	let values: Vec<_> = stream.collect().await;
@@ -88,10 +88,10 @@ async fn unit_yield_in_select() {
 	#[allow(clippy::unused_async)]
 	async fn do_stuff_async() {}
 
-	let stream = async_stream(|r#yield| async move {
+	let stream = async_stream(|yielder| async move {
 		tokio::select! {
-			() = do_stuff_async() => r#yield(()).await,
-			else => r#yield(()).await
+			() = do_stuff_async() => yielder.r#yield(()).await,
+			else => yielder.r#yield(()).await
 		}
 	});
 
@@ -105,11 +105,11 @@ async fn yield_with_select() {
 	async fn do_stuff_async() {}
 	async fn more_async_work() {}
 
-	let stream = async_stream(|r#yield| async move {
+	let stream = async_stream(|yielder| async move {
 		tokio::select! {
-			() = do_stuff_async() => r#yield("hey").await,
-			() = more_async_work() => r#yield("hey").await,
-			else => r#yield("hey").await
+			() = do_stuff_async() => yielder.r#yield("hey").await,
+			() = more_async_work() => yielder.r#yield("hey").await,
+			else => yielder.r#yield("hey").await
 		}
 	});
 
@@ -120,10 +120,10 @@ async fn yield_with_select() {
 #[tokio::test]
 async fn return_stream() {
 	fn build_stream() -> impl Stream<Item = u32> {
-		async_stream(|r#yield| async move {
-			r#yield(1).await;
-			r#yield(2).await;
-			r#yield(3).await;
+		async_stream(|yielder| async move {
+			yielder.r#yield(1).await;
+			yielder.r#yield(2).await;
+			yielder.r#yield(3).await;
 		})
 	}
 
@@ -139,10 +139,10 @@ async fn return_stream() {
 #[tokio::test]
 async fn boxed_stream() {
 	fn build_stream() -> BoxStream<'static, u32> {
-		Box::pin(async_stream(|r#yield| async move {
-			r#yield(1).await;
-			r#yield(2).await;
-			r#yield(3).await;
+		Box::pin(async_stream(|yielder| async move {
+			yielder.r#yield(1).await;
+			yielder.r#yield(2).await;
+			yielder.r#yield(3).await;
 		}))
 	}
 
@@ -159,9 +159,9 @@ async fn boxed_stream() {
 async fn consume_channel() {
 	let (tx, mut rx) = mpsc::channel(10);
 
-	let stream = async_stream(|r#yield| async move {
+	let stream = async_stream(|yielder| async move {
 		while let Some(v) = rx.recv().await {
-			r#yield(v).await;
+			yielder.r#yield(v).await;
 		}
 	});
 
@@ -182,8 +182,8 @@ async fn borrow_self() {
 
 	impl Data {
 		fn stream(&self) -> impl Stream<Item = &str> + '_ {
-			async_stream(|r#yield| async move {
-				r#yield(&self.0[..]).await;
+			async_stream(|yielder| async move {
+				yielder.r#yield(&self.0[..]).await;
 			})
 		}
 	}
@@ -201,8 +201,8 @@ async fn borrow_self_boxed() {
 
 	impl Data {
 		fn stream(&self) -> BoxStream<'_, &str> {
-			Box::pin(async_stream(|r#yield| async move {
-				r#yield(&self.0[..]).await;
+			Box::pin(async_stream(|yielder| async move {
+				yielder.r#yield(&self.0[..]).await;
 			}))
 		}
 	}
@@ -216,16 +216,16 @@ async fn borrow_self_boxed() {
 
 #[tokio::test]
 async fn stream_in_stream() {
-	let s = async_stream(|r#yield| async move {
-		let s = async_stream(|r#yield| async move {
+	let s = async_stream(|yielder| async move {
+		let s = async_stream(|yielder| async move {
 			for i in 0..3 {
-				r#yield(i).await;
+				yielder.r#yield(i).await;
 			}
 		});
 		pin_mut!(s);
 
 		while let Some(v) = s.next().await {
-			r#yield(v).await;
+			yielder.r#yield(v).await;
 		}
 	});
 
@@ -235,37 +235,37 @@ async fn stream_in_stream() {
 
 #[tokio::test]
 async fn streamception() {
-	let s = async_stream(|r#yield| async move {
-		let s = async_stream(|r#yield| async move {
-			let s = async_stream(|r#yield| async move {
-				let s = async_stream(|r#yield| async move {
-					let s = async_stream(|r#yield| async move {
+	let s = async_stream(|yielder| async move {
+		let s = async_stream(|yielder| async move {
+			let s = async_stream(|yielder| async move {
+				let s = async_stream(|yielder| async move {
+					let s = async_stream(|yielder| async move {
 						for i in 0..3 {
-							r#yield(i).await;
+							yielder.r#yield(i).await;
 						}
 					});
 					pin_mut!(s);
 
 					while let Some(v) = s.next().await {
-						r#yield(v).await;
+						yielder.r#yield(v).await;
 					}
 				});
 				pin_mut!(s);
 
 				while let Some(v) = s.next().await {
-					r#yield(v).await;
+					yielder.r#yield(v).await;
 				}
 			});
 			pin_mut!(s);
 
 			while let Some(v) = s.next().await {
-				r#yield(v).await;
+				yielder.r#yield(v).await;
 			}
 		});
 		pin_mut!(s);
 
 		while let Some(v) = s.next().await {
-			r#yield(v).await;
+			yielder.r#yield(v).await;
 		}
 	});
 
@@ -275,9 +275,9 @@ async fn streamception() {
 
 #[tokio::test]
 async fn yield_non_unpin_value() {
-	let s: Vec<_> = async_stream(|r#yield| async move {
+	let s: Vec<_> = async_stream(|yielder| async move {
 		for i in 0..3 {
-			r#yield(async move { i }).await;
+			yielder.r#yield(async move { i }).await;
 		}
 	})
 	.buffered(1)
@@ -290,10 +290,10 @@ async fn yield_non_unpin_value() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn multithreaded() {
 	fn build_stream() -> impl Stream<Item = u32> {
-		async_stream(|r#yield| async move {
-			r#yield(1).await;
-			r#yield(2).await;
-			r#yield(3).await;
+		async_stream(|yielder| async move {
+			yielder.r#yield(1).await;
+			yielder.r#yield(2).await;
+			yielder.r#yield(3).await;
 		})
 	}
 
