@@ -1,3 +1,4 @@
+use alloc::sync::Arc;
 use core::{
 	future::Future,
 	marker::PhantomData,
@@ -7,18 +8,18 @@ use core::{
 
 use futures_core::stream::{FusedStream, Stream};
 
-use crate::{YieldFut, enter, r#yield};
+use crate::{SharedStore, Yielder, enter};
 
 pin_project_lite::pin_project! {
 	/// A [`Stream`] created from a fallible, asynchronous generator-like function.
 	///
 	/// To create a [`TryAsyncStream`], use the [`try_async_stream`] function. See also [`crate::AsyncStream`].
-	#[derive(Debug)]
 	pub struct TryAsyncStream<T, E, U> {
-		_p: PhantomData<(T, E)>,
+		store: Arc<SharedStore<T>>,
 		done: bool,
 		#[pin]
-		generator: U
+		generator: U,
+		_p: PhantomData<E>
 	}
 }
 
@@ -43,9 +44,8 @@ where
 			return Poll::Ready(None);
 		}
 
-		let mut dst = None;
 		let res = {
-			let _enter = enter(&mut dst);
+			let _enter = enter(&me.store);
 			me.generator.poll(cx)
 		};
 
@@ -53,8 +53,8 @@ where
 
 		if let Poll::Ready(Err(e)) = res {
 			return Poll::Ready(Some(Err(e)));
-		} else if dst.is_some() {
-			return Poll::Ready(dst.take().map(Ok));
+		} else if me.store.has_value() {
+			return Poll::Ready(me.store.cell.take().map(Ok));
 		}
 
 		if *me.done { Poll::Ready(None) } else { Poll::Pending }
@@ -78,12 +78,12 @@ where
 /// use tokio::net::{TcpListener, TcpStream};
 ///
 /// fn bind_and_accept(addr: SocketAddr) -> impl Stream<Item = io::Result<TcpStream>> {
-/// 	try_async_stream(|r#yield| async move {
+/// 	try_async_stream(|yielder| async move {
 /// 		let mut listener = TcpListener::bind(addr).await?;
 /// 		loop {
 /// 			let (stream, addr) = listener.accept().await?;
 /// 			println!("received on {addr:?}");
-/// 			r#yield(stream).await;
+/// 			yielder.r#yield(stream).await;
 /// 		}
 /// 	})
 /// }
@@ -93,14 +93,16 @@ where
 /// error is encountered, the stream yields `Err(E)` and is subsequently terminated.
 pub fn try_async_stream<T, E, F, U>(generator: F) -> TryAsyncStream<T, E, U>
 where
-	F: FnOnce(fn(T) -> YieldFut<T>) -> U,
+	F: FnOnce(Yielder<T>) -> U,
 	U: Future<Output = Result<(), E>>
 {
-	let generator = generator(r#yield::<T>);
+	let store = Arc::new(SharedStore::default());
+	let generator = generator(Yielder { store: Arc::downgrade(&store) });
 	TryAsyncStream {
-		_p: PhantomData,
+		store,
 		done: false,
-		generator
+		generator,
+		_p: PhantomData
 	}
 }
 
@@ -112,11 +114,11 @@ mod tests {
 
 	#[tokio::test]
 	async fn single_err() {
-		let s = try_async_stream(|r#yield| async move {
+		let s = try_async_stream(|yielder| async move {
 			if true {
 				Err("hello")?;
 			} else {
-				r#yield("world").await;
+				yielder.r#yield("world").await;
 			}
 			Ok(())
 		});
@@ -128,8 +130,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn yield_then_err() {
-		let s = try_async_stream(|r#yield| async move {
-			r#yield("hello").await;
+		let s = try_async_stream(|yielder| async move {
+			yielder.r#yield("hello").await;
 			Err("world")?;
 			unreachable!();
 		});
@@ -152,13 +154,13 @@ mod tests {
 		}
 
 		fn test() -> impl Stream<Item = Result<&'static str, ErrorB>> {
-			try_async_stream(|r#yield| async move {
+			try_async_stream(|yielder| async move {
 				if true {
 					Err(ErrorA(1))?;
 				} else {
 					Err(ErrorB(2))?;
 				}
-				r#yield("unreachable").await;
+				yielder.r#yield("unreachable").await;
 				Ok(())
 			})
 		}

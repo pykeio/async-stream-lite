@@ -28,15 +28,3 @@ jobs:
       - uses: Swatinem/rust-cache@v1
       - name: Run tests
         run: cargo test
-  test-no-std:
-    name: Run tests (unstable-thread-local)
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install nightly Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: nightly-2024-11-11
-      - uses: Swatinem/rust-cache@v1
-      - name: Run tests
-        run: cargo test --features unstable-thread-local

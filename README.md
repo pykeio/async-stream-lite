@@ -8,9 +8,9 @@ use futures_util::{pin_mut, stream::StreamExt};
 
 #[tokio::main]
 async fn main() {
-	let stream = async_stream(|r#yield| async move {
+	let stream = async_stream(|yielder| async move {
 		for i in 0..3 {
-			r#yield(i).await;
+			yielder.r#yield(i).await;
 		}
 	});
 	pin_mut!(stream);
@@ -21,4 +21,4 @@ async fn main() {
 ```
 
 ## `#![no_std]` support
-`async-stream-lite` supports `#![no_std]` on nightly Rust (due to the usage of [the unstable `#[thread_local]` attribute](https://doc.rust-lang.org/beta/unstable-book/language-features/thread-local.html)). To enable `#![no_std]` support, enable the `unstable-thread-local` feature.
+`async-stream-lite` supports `#![no_std]`, but requires `alloc`.
