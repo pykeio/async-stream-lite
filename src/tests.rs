@@ -310,3 +310,18 @@ async fn multithreaded() {
 	}
 	join_all(futures).await;
 }
+
+#[tokio::test]
+#[should_panic = "attempted to use async_stream_lite yielder outside of stream context or across threads"]
+async fn test_move_yielder() {
+	let mut slot = None;
+	let s = async_stream(|yielder: Yielder<()>| async {
+		slot.replace(yielder);
+	});
+	pin_mut!(s);
+
+	let _ = s.next().await;
+	drop(s);
+
+	slot.take().unwrap().r#yield(()).await;
+}
