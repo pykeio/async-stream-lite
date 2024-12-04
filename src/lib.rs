@@ -8,7 +8,6 @@ use alloc::sync::{Arc, Weak};
 use core::{
 	cell::Cell,
 	future::Future,
-	marker::PhantomData,
 	pin::Pin,
 	sync::atomic::{AtomicBool, Ordering},
 	task::{Context, Poll}
@@ -47,7 +46,7 @@ pub struct Yielder<T> {
 }
 
 impl<T> Yielder<T> {
-	pub fn r#yield(&self, value: T) -> YieldFut<'_, T> {
+	pub fn r#yield(&self, value: T) -> YieldFut<T> {
 		#[cold]
 		fn invalid_usage() -> ! {
 			panic!("attempted to use async_stream_lite yielder outside of stream context or across threads")
@@ -62,7 +61,7 @@ impl<T> Yielder<T> {
 
 		store.cell.replace(Some(value));
 
-		YieldFut { store, _p: PhantomData }
+		YieldFut { store }
 	}
 }
 
@@ -70,14 +69,13 @@ impl<T> Yielder<T> {
 ///
 /// This future must be `.await`ed inside the generator in order for the item to be yielded by the stream.
 #[must_use = "stream will not yield this item unless the future returned by yield is awaited"]
-pub struct YieldFut<'y, T> {
+pub struct YieldFut<T> {
 	store: Arc<SharedStore<T>>,
-	_p: PhantomData<&'y ()>
 }
 
-impl<T> Unpin for YieldFut<'_, T> {}
+impl<T> Unpin for YieldFut<T> {}
 
-impl<T> Future for YieldFut<'_, T> {
+impl<T> Future for YieldFut<T> {
 	type Output = ();
 
 	fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
