@@ -70,7 +70,7 @@ impl<T> Yielder<T> {
 /// This future must be `.await`ed inside the generator in order for the item to be yielded by the stream.
 #[must_use = "stream will not yield this item unless the future returned by yield is awaited"]
 pub struct YieldFut<T> {
-	store: Arc<SharedStore<T>>,
+	store: Arc<SharedStore<T>>
 }
 
 impl<T> Unpin for YieldFut<T> {}
