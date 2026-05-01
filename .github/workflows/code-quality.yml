@@ -22,11 +22,11 @@ jobs:
     if: github.event.pull_request.draft == false
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install nightly Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-11-11
+          toolchain: nightly-2026-04-29
           components: rustfmt, clippy
       - name: Check fmt
         run: cargo fmt --all -- --check
