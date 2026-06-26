@@ -355,7 +355,7 @@ fn multithreaded() {
 }
 
 #[test]
-#[should_panic = "attempted to use async_stream_lite yielder outside of stream context or across threads"]
+#[should_panic = "attempted to use async-stream-lite yielder outside of stream context or across threads"]
 fn test_move_yielder() {
 	run_test(async {
 		let mut slot = None;

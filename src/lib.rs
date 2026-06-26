@@ -52,7 +52,7 @@ impl<T> Yielder<T> {
 	pub fn y(&self, value: T) -> YieldFut<T> {
 		#[cold]
 		fn invalid_usage() -> ! {
-			panic!("attempted to use async_stream_lite yielder outside of stream context or across threads")
+			panic!("attempted to use async-stream-lite yielder outside of stream context or across threads")
 		}
 
 		let Some(store) = self.store.upgrade() else {
