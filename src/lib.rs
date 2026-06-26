@@ -49,7 +49,7 @@ pub struct Yielder<T> {
 
 impl<T> Yielder<T> {
 	#[inline]
-	pub fn r#yield(&self, value: T) -> YieldFut<T> {
+	pub fn y(&self, value: T) -> YieldFut<T> {
 		#[cold]
 		fn invalid_usage() -> ! {
 			panic!("attempted to use async_stream_lite yielder outside of stream context or across threads")
@@ -65,6 +65,12 @@ impl<T> Yielder<T> {
 		store.cell.replace(Some(value));
 
 		YieldFut { store }
+	}
+
+	#[inline(always)]
+	#[deprecated = "use yielder.y() instead"]
+	pub fn r#yield(&self, value: T) -> YieldFut<T> {
+		self.y(value)
 	}
 }
 
@@ -174,7 +180,7 @@ where
 /// async fn main() {
 /// 	let stream = async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			yielder.r#yield(i).await;
+/// 			yielder.y(i).await;
 /// 		}
 /// 	});
 /// 	pin_mut!(stream);
@@ -195,7 +201,7 @@ where
 /// fn zero_to_three() -> impl Stream<Item = u32> {
 /// 	async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			yielder.r#yield(i).await;
+/// 			yielder.y(i).await;
 /// 		}
 /// 	})
 /// }
@@ -221,7 +227,7 @@ where
 /// fn zero_to_three() -> BoxStream<'static, u32> {
 /// 	Box::pin(async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			yielder.r#yield(i).await;
+/// 			yielder.y(i).await;
 /// 		}
 /// 	}))
 /// }
@@ -246,7 +252,7 @@ where
 /// fn zero_to_three() -> impl Stream<Item = u32> {
 /// 	async_stream(|yielder| async move {
 /// 		for i in 0..3 {
-/// 			yielder.r#yield(i).await;
+/// 			yielder.y(i).await;
 /// 		}
 /// 	})
 /// }
@@ -255,7 +261,7 @@ where
 /// 	async_stream(|yielder| async move {
 /// 		pin_mut!(input);
 /// 		while let Some(value) = input.next().await {
-/// 			yielder.r#yield(value * 2).await;
+/// 			yielder.y(value * 2).await;
 /// 		}
 /// 	})
 /// }

@@ -54,7 +54,7 @@ fn empty_stream() {
 fn yield_single_value() {
 	run_test(async {
 		let s = async_stream(|yielder| async move {
-			yielder.r#yield("hello").await;
+			yielder.y("hello").await;
 		});
 
 		let values: Vec<_> = s.collect().await;
@@ -68,7 +68,7 @@ fn yield_single_value() {
 fn fused() {
 	run_test(async {
 		let s = async_stream(|yielder| async move {
-			yielder.r#yield("hello").await;
+			yielder.y("hello").await;
 		});
 		pin_mut!(s);
 
@@ -85,9 +85,9 @@ fn fused() {
 fn yield_multi_value() {
 	run_test(async {
 		let stream = async_stream(|yielder| async move {
-			yielder.r#yield("hello").await;
-			yielder.r#yield("world").await;
-			yielder.r#yield("foobar").await;
+			yielder.y("hello").await;
+			yielder.y("world").await;
+			yielder.y("foobar").await;
 		});
 
 		let values: Vec<_> = stream.collect().await;
@@ -107,8 +107,8 @@ fn unit_yield_in_select() {
 
 		let stream = async_stream(|yielder| async move {
 			tokio::select! {
-				() = do_stuff_async() => yielder.r#yield(()).await,
-				else => yielder.r#yield(()).await
+				() = do_stuff_async() => yielder.y(()).await,
+				else => yielder.y(()).await
 			}
 		});
 
@@ -126,9 +126,9 @@ fn yield_with_select() {
 
 		let stream = async_stream(|yielder| async move {
 			tokio::select! {
-				() = do_stuff_async() => yielder.r#yield("hey").await,
-				() = more_async_work() => yielder.r#yield("hey").await,
-				else => yielder.r#yield("hey").await
+				() = do_stuff_async() => yielder.y("hey").await,
+				() = more_async_work() => yielder.y("hey").await,
+				else => yielder.y("hey").await
 			}
 		});
 
@@ -142,9 +142,9 @@ fn return_stream() {
 	run_test(async {
 		fn build_stream() -> impl Stream<Item = u32> {
 			async_stream(|yielder| async move {
-				yielder.r#yield(1).await;
-				yielder.r#yield(2).await;
-				yielder.r#yield(3).await;
+				yielder.y(1).await;
+				yielder.y(2).await;
+				yielder.y(3).await;
 			})
 		}
 
@@ -163,9 +163,9 @@ fn boxed_stream() {
 	run_test(async {
 		fn build_stream() -> BoxStream<'static, u32> {
 			Box::pin(async_stream(|yielder| async move {
-				yielder.r#yield(1).await;
-				yielder.r#yield(2).await;
-				yielder.r#yield(3).await;
+				yielder.y(1).await;
+				yielder.y(2).await;
+				yielder.y(3).await;
 			}))
 		}
 
@@ -186,7 +186,7 @@ fn consume_channel() {
 
 		let stream = async_stream(|yielder| async move {
 			while let Some(v) = rx.recv().await {
-				yielder.r#yield(v).await;
+				yielder.y(v).await;
 			}
 		});
 
@@ -210,7 +210,7 @@ fn borrow_self() {
 		impl Data {
 			fn stream(&self) -> impl Stream<Item = &str> + '_ {
 				async_stream(|yielder| async move {
-					yielder.r#yield(&self.0[..]).await;
+					yielder.y(&self.0[..]).await;
 				})
 			}
 		}
@@ -231,7 +231,7 @@ fn borrow_self_boxed() {
 		impl Data {
 			fn stream(&self) -> BoxStream<'_, &str> {
 				Box::pin(async_stream(|yielder| async move {
-					yielder.r#yield(&self.0[..]).await;
+					yielder.y(&self.0[..]).await;
 				}))
 			}
 		}
@@ -250,13 +250,13 @@ fn stream_in_stream() {
 		let s = async_stream(|yielder| async move {
 			let s = async_stream(|yielder| async move {
 				for i in 0..3 {
-					yielder.r#yield(i).await;
+					yielder.y(i).await;
 				}
 			});
 			pin_mut!(s);
 
 			while let Some(v) = s.next().await {
-				yielder.r#yield(v).await;
+				yielder.y(v).await;
 			}
 		});
 
@@ -274,31 +274,31 @@ fn streamception() {
 					let s = async_stream(|yielder| async move {
 						let s = async_stream(|yielder| async move {
 							for i in 0..3 {
-								yielder.r#yield(i).await;
+								yielder.y(i).await;
 							}
 						});
 						pin_mut!(s);
 
 						while let Some(v) = s.next().await {
-							yielder.r#yield(v).await;
+							yielder.y(v).await;
 						}
 					});
 					pin_mut!(s);
 
 					while let Some(v) = s.next().await {
-						yielder.r#yield(v).await;
+						yielder.y(v).await;
 					}
 				});
 				pin_mut!(s);
 
 				while let Some(v) = s.next().await {
-					yielder.r#yield(v).await;
+					yielder.y(v).await;
 				}
 			});
 			pin_mut!(s);
 
 			while let Some(v) = s.next().await {
-				yielder.r#yield(v).await;
+				yielder.y(v).await;
 			}
 		});
 
@@ -312,7 +312,7 @@ fn yield_non_unpin_value() {
 	run_test(async {
 		let s: Vec<_> = async_stream(|yielder| async move {
 			for i in 0..3 {
-				yielder.r#yield(async move { i }).await;
+				yielder.y(async move { i }).await;
 			}
 		})
 		.buffered(1)
@@ -333,9 +333,9 @@ fn multithreaded() {
 		.block_on(async {
 			fn build_stream() -> impl Stream<Item = u32> {
 				async_stream(|yielder| async move {
-					yielder.r#yield(1).await;
-					yielder.r#yield(2).await;
-					yielder.r#yield(3).await;
+					yielder.y(1).await;
+					yielder.y(2).await;
+					yielder.y(3).await;
 				})
 			}
 
@@ -367,6 +367,6 @@ fn test_move_yielder() {
 		let _ = s.next().await;
 		drop(s);
 
-		slot.take().unwrap().r#yield(()).await;
+		slot.take().unwrap().y(()).await;
 	})
 }

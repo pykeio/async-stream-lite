@@ -10,7 +10,7 @@ use futures_util::{pin_mut, stream::StreamExt};
 async fn main() {
 	let stream = async_stream(|yielder| async move {
 		for i in 0..3 {
-			yielder.r#yield(i).await;
+			yielder.y(i).await;
 		}
 	});
 	pin_mut!(stream);

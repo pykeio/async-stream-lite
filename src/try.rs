@@ -86,7 +86,7 @@ where
 /// 		loop {
 /// 			let (stream, addr) = listener.accept().await?;
 /// 			println!("received on {addr:?}");
-/// 			yielder.r#yield(stream).await;
+/// 			yielder.y(stream).await;
 /// 		}
 /// 	})
 /// }
@@ -124,7 +124,7 @@ mod tests {
 				if true {
 					Err("hello")?;
 				} else {
-					yielder.r#yield("world").await;
+					yielder.y("world").await;
 				}
 				Ok(())
 			});
@@ -139,7 +139,7 @@ mod tests {
 	fn yield_then_err() {
 		run_test(async {
 			let s = try_async_stream(|yielder| async move {
-				yielder.r#yield("hello").await;
+				yielder.y("hello").await;
 				Err("world")?;
 				unreachable!();
 			});
@@ -170,7 +170,7 @@ mod tests {
 					} else {
 						Err(ErrorB(2))?;
 					}
-					yielder.r#yield("unreachable").await;
+					yielder.y("unreachable").await;
 					Ok(())
 				})
 			}
