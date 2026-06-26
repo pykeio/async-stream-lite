@@ -25,6 +25,7 @@ pub(crate) struct SharedStore<T> {
 }
 
 impl<T> Default for SharedStore<T> {
+	#[inline]
 	fn default() -> Self {
 		Self {
 			entered: AtomicBool::new(false),
@@ -34,6 +35,7 @@ impl<T> Default for SharedStore<T> {
 }
 
 impl<T> SharedStore<T> {
+	#[inline(always)]
 	pub fn has_value(&self) -> bool {
 		unsafe { &*self.cell.as_ptr() }.is_some()
 	}
@@ -46,6 +48,7 @@ pub struct Yielder<T> {
 }
 
 impl<T> Yielder<T> {
+	#[inline]
 	pub fn r#yield(&self, value: T) -> YieldFut<T> {
 		#[cold]
 		fn invalid_usage() -> ! {
@@ -78,6 +81,7 @@ impl<T> Unpin for YieldFut<T> {}
 impl<T> Future for YieldFut<T> {
 	type Output = ();
 
+	#[inline(always)]
 	fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
 		if !self.store.has_value() {
 			return Poll::Ready(());
@@ -91,12 +95,14 @@ struct Enter<'s, T> {
 	store: &'s SharedStore<T>
 }
 
+#[inline]
 fn enter<T>(store: &SharedStore<T>) -> Enter<'_, T> {
 	store.entered.store(true, Ordering::Relaxed);
 	Enter { store }
 }
 
 impl<T> Drop for Enter<'_, T> {
+	#[inline]
 	fn drop(&mut self) {
 		self.store.entered.store(false, Ordering::Relaxed);
 	}
@@ -118,6 +124,7 @@ impl<T, U> FusedStream for AsyncStream<T, U>
 where
 	U: Future<Output = ()>
 {
+	#[inline(always)]
 	fn is_terminated(&self) -> bool {
 		self.done
 	}
@@ -129,6 +136,7 @@ where
 {
 	type Item = T;
 
+	#[inline]
 	fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
 		let me = self.project();
 		if *me.done {
@@ -149,6 +157,7 @@ where
 		if *me.done { Poll::Ready(None) } else { Poll::Pending }
 	}
 
+	#[inline]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		if self.done { (0, Some(0)) } else { (0, None) }
 	}
@@ -262,6 +271,7 @@ where
 /// ```
 ///
 /// See also [`try_async_stream`], a variant of [`async_stream`] which supports try notation (`?`).
+#[inline]
 pub fn async_stream<T, F, U>(generator: F) -> AsyncStream<T, U>
 where
 	F: FnOnce(Yielder<T>) -> U,

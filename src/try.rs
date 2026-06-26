@@ -27,6 +27,7 @@ impl<T, E, U> FusedStream for TryAsyncStream<T, E, U>
 where
 	U: Future<Output = Result<(), E>>
 {
+	#[inline(always)]
 	fn is_terminated(&self) -> bool {
 		self.done
 	}
@@ -38,6 +39,7 @@ where
 {
 	type Item = Result<T, E>;
 
+	#[inline]
 	fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
 		let me = self.project();
 		if *me.done {
@@ -60,6 +62,7 @@ where
 		if *me.done { Poll::Ready(None) } else { Poll::Pending }
 	}
 
+	#[inline]
 	fn size_hint(&self) -> (usize, Option<usize>) {
 		if self.done { (0, Some(0)) } else { (0, None) }
 	}
@@ -91,6 +94,7 @@ where
 ///
 /// The resulting stream yields `Result<T, E>`. The yielder function will cause the stream to yield `Ok(T)`. When an
 /// error is encountered, the stream yields `Err(E)` and is subsequently terminated.
+#[inline]
 pub fn try_async_stream<T, E, F, U>(generator: F) -> TryAsyncStream<T, E, U>
 where
 	F: FnOnce(Yielder<T>) -> U,
