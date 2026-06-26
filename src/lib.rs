@@ -142,8 +142,8 @@ where
 
 		*me.done = res.is_ready();
 
-		if me.store.has_value() {
-			return Poll::Ready(me.store.cell.take());
+		if let Some(value) = me.store.cell.take() {
+			return Poll::Ready(Some(value));
 		}
 
 		if *me.done { Poll::Ready(None) } else { Poll::Pending }
